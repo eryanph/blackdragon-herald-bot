@@ -1,0 +1,22 @@
+{
+  "name": "blackdragon-tg",
+  "type": "module",
+  "version": "1.0.0",
+  "description": "A telegram bot for BLACKDRAGON token on Near",
+  "main": "index.js",
+  "scripts": {
+    "start": "node --env-file=.env index.js",
+    "test": "npm run test"
+  },
+  "keywords": [
+    "blackdragon",
+    "near",
+    "bot"
+  ],
+  "author": "Nayr",
+  "license": "ISC",
+  "dependencies": {
+    "@ref-finance/ref-sdk": "^1.2.2",
+    "node-telegram-bot-api": "^0.64.0"
+  }
+}
