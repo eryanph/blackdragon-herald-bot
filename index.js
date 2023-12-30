@@ -1,15 +1,11 @@
 import TelegramBot from "node-telegram-bot-api";
-import {
-  estimateSwap,
-  ftGetTokenMetadata,
-  fetchAllPools,
-  getPoolByIds,
-} from "@ref-finance/ref-sdk";
 
 const blackdragonInfo = {
   price: undefined,
   marketcap: undefined,
   liquidity: undefined,
+  "24h_volume": undefined,
+  "24h_priceChange": undefined,
 };
 
 const subscriptDict = {
@@ -29,31 +25,13 @@ const delay = async (ms) =>
   await new Promise((resolve) => setTimeout(resolve, ms));
 
 const updatePrice = async () => {
-  const bd2wnearPool = await getPoolByIds([4276]);
-  const { simplePools } = await fetchAllPools();
-  const blackdragon = await ftGetTokenMetadata("blackdragon.tkn.near");
-  const wnear = await ftGetTokenMetadata("wrap.near");
-  const bd2wn = await estimateSwap({
-    tokenIn: blackdragon,
-    tokenOut: wnear,
-    amountIn: "1",
-    simplePools: bd2wnearPool,
-  });
-
-  const usdt = await ftGetTokenMetadata(
-    "dac17f958d2ee523a2206206994597c13d831ec7.factory.bridge.near"
+  const response = await fetch(
+    "https://api.dexscreener.com/latest/dex/pairs/near/refv1-4276"
   );
-  const usdt2wn = await estimateSwap({
-    tokenIn: wnear,
-    tokenOut: usdt,
-    amountIn: "1",
-    simplePools,
-  });
+  const info = await response.json();
 
+  const price = Number(info.pair.priceUsd).toExponential();
   let actualPrice;
-  const price = (
-    Number(bd2wn[0].estimate) * Number(usdt2wn[0].estimate)
-  ).toExponential();
   const [actual, exponent] = price.split("e");
   if (exponent.includes("-")) {
     const magnitude = String(Number(exponent.replace("-", "")) - 1);
@@ -74,15 +52,6 @@ const updatePrice = async () => {
     actualPrice = `$${parsedActual}`;
   }
 
-  // compute liquidity
-  const liqBd =
-    (Number(bd2wnearPool[0].supplies["blackdragon.tkn.near"]) / 1e24) *
-    Number(bd2wn[0].estimate) *
-    Number(usdt2wn[0].estimate);
-  const liqWnear =
-    (Number(bd2wnearPool[0].supplies["wrap.near"]) / 1e24) *
-    Number(usdt2wn[0].estimate);
-
   blackdragonInfo.price = actualPrice;
   blackdragonInfo.marketcap = `$${Intl.NumberFormat("en-US", {
     notation: "compact",
@@ -91,7 +60,14 @@ const updatePrice = async () => {
   blackdragonInfo.liquidity = `$${Intl.NumberFormat("en-US", {
     notation: "compact",
     maximumFractionDigits: 3,
-  }).format(liqBd + liqWnear)}`;
+  }).format(info.pair.liquidity.usd)}`;
+  blackdragonInfo["24h_volume"] = `$${Intl.NumberFormat("en-US", {
+    notation: "compact",
+    maximumFractionDigits: 3,
+  }).format(info.pair.volume.h24)}`;
+  blackdragonInfo["24h_priceChange"] = `(${
+    info.pair.priceChange.h24 > 0 ? "+" : ""
+  }${info.pair.priceChange.h24.toFixed(2)}% | 24h)`;
 };
 
 const loop = async () => {
@@ -109,12 +85,12 @@ const runBot = () => {
   bot.onText(/\/dragon/, async (msg) => {
     let message = "⬛ <b>$BLACKDRAGON</b> 🐉\n";
     message += `\n`;
-    message += `Price: <b>${blackdragonInfo.price}</b>\n`;
+    message += `Price: <b>${blackdragonInfo.price} ${blackdragonInfo["24h_priceChange"]}</b>\n`;
     message += `Marketcap: <b>${blackdragonInfo.marketcap}</b>\n`;
     message += `Liquidity: <b>${blackdragonInfo.liquidity}</b>\n`;
+    message += `Volume (24h): <b>${blackdragonInfo["24h_volume"]}</b>\n`;
     message += `\n`;
     message += `📊 <a href='https://dexscreener.com/near/refv1-4276'>Chart</a> 🔁 <a href='https://app.ref.finance/#near|blackdragon.tkn.near'>Trade</a>`;
-    // message += `🔁 <a href='https://app.ref.finance/#near|blackdragon.tkn.near'>Trade</a>`;
     bot.sendMessage(msg.chat.id, message, {
       parse_mode: "HTML",
       disable_web_page_preview: true,
