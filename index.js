@@ -1,4 +1,8 @@
 import TelegramBot from "node-telegram-bot-api";
+import whitelist from "./whitelist.json" assert { type: "json" };
+
+const whitelistedIds = Object.keys(whitelist);
+console.log(whitelistedIds);
 
 const blackdragonInfo = {
   price: undefined,
@@ -83,6 +87,11 @@ const runBot = () => {
   const bot = new TelegramBot(token, { polling: true });
 
   bot.onText(/\/dragon/, async (msg) => {
+    const chatId = String(msg.chat.id);
+    if (!whitelistedIds.includes(chatId)) {
+      return;
+    }
+
     let message = "⬛ <b>$BLACKDRAGON</b> 🐉\n";
     message += `\n`;
     message += `Price: <b>${blackdragonInfo.price} ${blackdragonInfo["24h_priceChange"]}</b>\n`;
@@ -94,6 +103,7 @@ const runBot = () => {
     bot.sendMessage(msg.chat.id, message, {
       parse_mode: "HTML",
       disable_web_page_preview: true,
+      reply_to_message_id: whitelist[chatId].message_thread_id,
     });
   });
 
